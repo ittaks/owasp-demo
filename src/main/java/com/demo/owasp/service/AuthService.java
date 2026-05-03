@@ -16,7 +16,7 @@ public class AuthService {
     public User register(RegisterRequest request) {
         User user = new User();
         user.setUsername(request.getUsername());
-        user.setPassword(request.getPassword()); // ❌ plain text
+        user.setPassword(request.getPassword()); // plain text
         user.setRole("USER");
 
         return userRepository.save(user);
@@ -26,7 +26,7 @@ public class AuthService {
         User user = userRepository.findByUsername(request.getUsername());
 
         if (user != null && user.getPassword().equals(request.getPassword())) {
-            return user; // ❌ returns full entity
+            return user; // returns full entity
         }
 
         throw new RuntimeException("Invalid credentials");
