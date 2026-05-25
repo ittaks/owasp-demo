@@ -65,4 +65,19 @@ public class TaskController {
         TaskResponse response = taskService.createTaskFromXmlForUser(file, principal.getName());
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/import")
+    public Task importTask(@RequestParam String userId,
+                           @RequestParam("file") MultipartFile file) {
+
+        return taskService.createFromXml(userId, file);
+    }
+
+    @PutMapping("/{id}/import")
+    public Task updateFromXml(@PathVariable String id,
+                              @RequestParam String userId,
+                              @RequestParam("file") MultipartFile file) {
+
+        return taskService.updateFromXml(id, userId, file);
+    }
 }
