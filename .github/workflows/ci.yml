@@ -36,7 +36,7 @@ jobs:
       # Time se ispunjava OWASP A03 preporuka o trajnom čuvanju i reviziji SBOM-a za svaku verziju
       - name: Pohrana CycloneDX SBOM dokumenta
         if: always() # Osigurava da se SBOM spremi čak i ako naknadni koraci padnu
-        uses: actions/artifacts@v4
+        uses: actions/upload-artifact@v4
         with:
           name: software-bill-of-materials
           path: target/bom.json
