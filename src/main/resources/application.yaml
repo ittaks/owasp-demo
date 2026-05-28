@@ -1,26 +1,57 @@
+# =========================================================================
+# GLAVNA PRODUKCIJSKA KONFIGURACIJA (Zadane postavke - Hardened po defaultu)
+# =========================================================================
 server:
   port: 8080
 
 spring:
+  application:
+    name: owasp-demo
   datasource:
     url: jdbc:h2:mem:testdb
     driver-class-name: org.h2.Driver
     username: sa
     password: password
-
-  application:
-    name: owasp-demo
-
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
-
+    show-sql: false # Isključeno u produkciji kako se ne bi logirali osjetljivi podaci
   h2:
     console:
-      enabled: true
+      enabled: false # OWASP Scenario #1: Razvojni alati su strogo ugašeni u produkciji
       path: /h2-console
+  web:
+    error:
+      whitelabel:
+        enabled: false
+      include-stacktrace: never
+      include-binding-errors: never
+      include-message: never
 
 logging:
   level:
-    root: DEBUG
+    root: INFO # U produkciji se koristi restriktivniji nivo logiranja (manji rizik od curenja podataka)
+
+# OWASP A02: Eksternalizacija tajni izvan koda (povlačenje iz okruženja s fallback vrijednostima)
+jwt:
+  secret: ${JWT_SECRET:MojaUltraSigurnaTajnaKojaImaViseOdTridesetIdvaZnaka123!}
+
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:https://trusted-frontend.demo.com}
+
+---
+# =========================================================================
+# RAZVOJNA KONFIGURACIJA (Aktivira se isključivo pokretanjem uz profil "dev")
+# =========================================================================
+spring:
+  config:
+    activate:
+      on-profile: dev
+  h2:
+    console:
+      enabled: true # H2 konzola se dopušta isključivo u lokalnom razvoju
+
+logging:
+  level:
+    root: DEBUG # Detaljno logiranje je dopušteno samo developerima u dev okruženju
