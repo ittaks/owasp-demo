@@ -53,7 +53,7 @@ public class TaskService {
     }
 
     // STROGA KRITIČNA ZAŠTITA OD IDOR-a: Eksplicitna verifikacija vlasništva nad resursom
-    public Task updateTaskForUser(Long taskId, TaskRequest request, String username) {
+    public Task updateTaskForUser(String taskId, TaskRequest request, String username) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("Task not found"));
 
@@ -68,7 +68,7 @@ public class TaskService {
         return taskRepository.save(task);
     }
     // SIGURNA LOGIKA BRISANJA: Objedinjena provjera uloga i vlasništva zapisa
-    public void deleteTaskForUser(Long taskId, String username) {
+    public void deleteTaskForUser(String taskId, String username) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("Task not found"));
 
@@ -83,25 +83,25 @@ public class TaskService {
     }
 
     /**
-     * OWASP A01 Secure File Import Implementation
-     * * Uses cryptographically verified context session identifiers instead of
-     * request parameters to prevent horizontal privilege escalations.
+     * OWASP A01: Sigurna implementacija uvoza datoteka
+     * Koristi kriptografski verificirane identifikatore sesije iz konteksta umjesto
+     * parametara zahtjeva kako bi se spriječila horizontalna eskalacija privilegija.
      */
     public TaskResponse createTaskFromXmlForUser(MultipartFile file, String username) {
-        // 1. Process the incoming stream safely using defensive configurations
+        // 1. Sigurna obrada dolaznog toka podataka korištenjem obrambenih konfiguracija parsera (OWASP A03)
         TaskFromXmlRequest dto = xmlParserService.parse(file);
 
-        // 2. Fetch context owner strictly via verified identity token bindings
+        // 2. Dohvaćanje vlasnika konteksta strogo putem povezanih provjerenih tokena identiteta (OWASP A01)
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User context validation failure."));
+                .orElseThrow(() -> new RuntimeException("Neuspjela validacija korisničkog konteksta."));
 
-        // 3. Build and persist resource properties
+        // 3. Izgradnja i perzistencija svojstava resursa
         Task task = new Task();
         task.setTitle(dto.getTitle());
         task.setDescription(dto.getDescription());
         task.setOwner(user);
 
-        // 4. Return safe DTO encapsulation out to client visibility layers
+        // 4. Povratak sigurnog DTO objekta radi enkapsulacije vidljivosti prema klijentu (OWASP A02)
         return mapToResponse(taskRepository.save(task));
     }
 }

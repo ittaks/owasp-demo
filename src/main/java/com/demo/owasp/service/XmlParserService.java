@@ -1,6 +1,5 @@
 package com.demo.owasp.service;
 
-
 import com.demo.owasp.dto.TaskFromXmlRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -16,8 +15,9 @@ public class XmlParserService {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
 
             // =========================================================================
-            // OWASP A03:2021 MITIGATION - DEFENSIVE XXE HARDENING
-            // Completely disable DTDs (Document Type Definitions) and external entities
+            // OWASP A03:2025 MITIGACIJA - OBRAMBENO OČVRŠĆIVANJE OD XXE NAPADA
+            // Potpuno onemogućavanje DTD-ova (Document Type Definitions) i vanjskih entiteta.
+            // Čak i ako komponenta treće strane ima propust, kôd onemogućava njezinu zloupotrebu.
             // =========================================================================
             factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
             factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
@@ -40,8 +40,8 @@ public class XmlParserService {
 
             return dto;
         } catch (Exception e) {
-            // Keep error messages generic to prevent path/system structural leaks
-            throw new RuntimeException("Invalid or unsafe file structural format.");
+            // Poruke o pogrešci ostaju generičke kako bi se spriječilo curenje strukture sustava i putanja
+            throw new RuntimeException("Format strukture datoteke je nevažeći ili nesiguran.");
         }
     }
 }

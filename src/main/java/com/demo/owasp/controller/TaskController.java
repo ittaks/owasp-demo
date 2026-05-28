@@ -44,14 +44,15 @@ public class TaskController {
 
     // ZAŠTITA OD ZAOBILAŽENJA ZAPISA: Servis provjerava vlasništvo prije izmjene resursa
     @PutMapping("/{id}")
-    public ResponseEntity<Task> update(@PathVariable Long id, @RequestBody TaskRequest taskRequest, Principal principal) {
+    public ResponseEntity<Task> update(@PathVariable String id, @RequestBody TaskRequest taskRequest,
+                                       Principal principal) {
         return ResponseEntity.ok(taskService.updateTaskForUser(id, taskRequest, principal.getName()));
     }
 
     // OBJEDINJENO SIGURNO BRISANJE: Spriječeno dvostruko mapiranje rute.
     // Servis rješava logiku: dopušteno je ako si vlasnik zapisa ILI ako si ADMIN.
     @DeleteMapping("/{id}")
-    public ResponseEntity<String> delete(@PathVariable Long id, Principal principal) {
+    public ResponseEntity<String> delete(@PathVariable String id, Principal principal) {
         taskService.deleteTaskForUser(id, principal.getName());
         return ResponseEntity.ok("Task successfully removed.");
     }
@@ -64,20 +65,5 @@ public class TaskController {
 
         TaskResponse response = taskService.createTaskFromXmlForUser(file, principal.getName());
         return ResponseEntity.ok(response);
-    }
-
-    @PostMapping("/import")
-    public Task importTask(@RequestParam String userId,
-                           @RequestParam("file") MultipartFile file) {
-
-        return taskService.createFromXml(userId, file);
-    }
-
-    @PutMapping("/{id}/import")
-    public Task updateFromXml(@PathVariable String id,
-                              @RequestParam String userId,
-                              @RequestParam("file") MultipartFile file) {
-
-        return taskService.updateFromXml(id, userId, file);
     }
 }
