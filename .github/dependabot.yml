@@ -1,0 +1,14 @@
+# Putanja: .github/dependabot.yml
+version: 2
+updates:
+  # 1. Konfiguracija za automatsko skeniranje Java/Maven ovisnosti (pom.xml)
+  - package-ecosystem: "maven"
+    directory: "/" # Lokacija gdje se nalazi pom.xml (korijenski direktorij)
+    schedule:
+      interval: "daily" # Svaki dan provjeravaj ima li ranjivih biblioteka u bazi podataka
+
+  # 2. Konfiguracija za automatsko skeniranje baznih Docker slika (Dockerfile)
+  - package-ecosystem: "docker"
+    directory: "/" # Lokacija gdje se nalazi Dockerfile
+    schedule:
+      interval: "daily" # Svaki dan provjeravaj je li eclipse-temurin slika dobila sigurnosnu zakrpu
