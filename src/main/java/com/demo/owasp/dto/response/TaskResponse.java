@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data
 public class TaskResponse {
-    private Long id;
+    private String id;
     private String title;
     private String description;
     private String ownerUsername; // Safe exposure: hides internal IDs & raw passwords
