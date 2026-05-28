@@ -39,7 +39,11 @@ jwt:
 app:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:https://trusted-frontend.demo.com}
-
+# OWASP A04 & A02: Definiranje tajni izvan koda.
+# Za produkciju se APP_CRYPTO_KEY prosljeđuje kao varijabla okruženja.
+# Zamjenska (fallback) vrijednost ima točno 32 ASCII znaka (256 bita), što zadovoljava uvjete za AES-256 enkripciju.
+  crypto:
+    secret-key: ${APP_CRYPTO_KEY:MojaUltraSigurnaEnkripcijskaTajn}
 ---
 # =========================================================================
 # RAZVOJNA KONFIGURACIJA (Aktivira se isključivo pokretanjem uz profil "dev")
