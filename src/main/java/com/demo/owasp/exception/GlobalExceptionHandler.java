@@ -18,26 +18,33 @@ public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<Map<String, String>> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
-        // OWASP A01 REQUIREMENT: Log access control failures to track potential adversaries
-        String user = request.getUserPrincipal() != null ? request.getUserPrincipal().getName() : "ANONYMOUS";
-
+    public ResponseEntity<Map<String, String>> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) { // [cite: 83]
+        String user = request.getUserPrincipal() != null ? request.getUserPrincipal().getName() : "ANONYMOUS"; // [cite: 83, 84]
         log.warn("SECURITY VIOLATION: User '{}' attempted unauthorized access to path: {} [{}]",
-                user, request.getRequestURI(), request.getMethod());
+                user, request.getRequestURI(), request.getMethod()); // [cite: 84, 85]
 
         Map<String, String> response = new HashMap<>();
         response.put("error", "Access Denied");
-        response.put("message", "You do not have permission to execute this operation.");
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+        response.put("message", "You do not have permission to execute this operation."); // [cite: 85]
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response); //
+    }
+
+    // OWASP A02 FIX: Centralizirano presretanje neuspjelih prijava - vraća se točan 401 status umjesto greške 500
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<Map<String, String>> handleBadCredentials(BadCredentialsException ex) {
+        Map<String, String> response = new HashMap<>();
+        response.put("error", "Unauthorized");
+        response.put("message", "The username or password provided is incorrect.");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, String>> handleGenericException(Exception ex) {
-        log.error("Internal server failure", ex);
+    public ResponseEntity<Map<String, String>> handleGenericException(Exception ex) { //
+        log.error("Internal server failure", ex); //
 
-        Map<String, String> response = new HashMap<>();
-        response.put("error", "Internal Server Error");
-        response.put("message", "An unexpected error occurred. Please contact system administrators.");
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        Map<String, String> response = new HashMap<>(); //
+        response.put("error", "Internal Server Error"); // [cite: 87]
+        response.put("message", "An unexpected error occurred. Please contact system administrators."); // [cite: 87]
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response); // [cite: 88]
     }
 }
