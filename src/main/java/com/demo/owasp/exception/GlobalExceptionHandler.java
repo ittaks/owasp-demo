@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -46,5 +47,27 @@ public class GlobalExceptionHandler {
         response.put("error", "Internal Server Error"); // [cite: 87]
         response.put("message", "An unexpected error occurred. Please contact system administrators."); // [cite: 87]
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response); // [cite: 88]
+    }
+
+    /**
+     * Globalni upravitelj iznimkama na razini aplikacije.
+     * Proširen je metodom za presretanje MethodArgumentNotValidException kako bi se klijentu
+     * vratile isključivo sanirane i jasne poruke o neuspjeloj validaciji unosa.
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> handleValidationExceptions(MethodArgumentNotValidException ex) {
+
+        Map<String, String> errors = new HashMap<>();
+        ex.getBindingResult().getAllErrors().forEach((error) -> {
+            String fieldName = ((org.springframework.validation.FieldError) error).getField();
+            String errorMessage = error.getDefaultMessage();
+            errors.put(fieldName, errorMessage);
+        });
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("error", "Validation Failed");
+        response.put("details", errors);
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 }

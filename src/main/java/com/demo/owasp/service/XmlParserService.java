@@ -6,7 +6,11 @@ import org.springframework.web.multipart.MultipartFile;
 import org.w3c.dom.Document;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-
+/**
+ * Servis za sigurno parsiranje XML dokumenata.
+ * Konfiguracijom parsera onemogućavaju se DTD deklaracije i vanjski entiteti,
+ * čime se neutralizira rizik od XML External Entity (XXE) injection napada.
+ */
 @Service
 public class XmlParserService {
 
