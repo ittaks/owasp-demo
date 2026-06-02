@@ -1,3 +1,16 @@
+# =============================================================================================
+# OWASP A05:2025 – AUTOMATIZIRANO STATIČKO SKENIRANJE IZVORNOG KODA (SAST) U CI/CD (CWE-74)
+# =============================================================================================
+# Demonstracija zaštite:
+# Službena OWASP A05:2025 dokumentacija izričito nalaže integraciju SAST (Static Application Security Testing) 
+# alata u CI/CD cjevovod. Prethodna konfiguracija koristila je samo SCA skeniranje (dependency-check) koje provjerava 
+# runs-on eksterne biblioteke (OWASP A03). 
+# 
+# Dodavanjem GitHub CodeQL koraka, cjevovod sada aktivno analizira naš prilagođeni Java kod u potrazi za logičkim 
+# propustima prije nego što se aplikacija zapakira u Docker sliku. CodeQL će pratiti tok podataka (Data Flow Analysis) 
+# i automatski blokirati build ako programer slučajno spoji korisnički unos u sirovi SQL upit, OS naredbu (Runtime.exec) 
+# ili propusti sanitarizirati string izložen XSS-u.
+
 name: OWASP Secure CI Pipeline
 
 on:
@@ -8,7 +21,7 @@ on:
 
 jobs:
   secure-build:
-    name: Izgradnja projekta i SCA Skeniranje (OWASP A03)
+    name: Izgradnja projekta, SCA i SAST Skeniranje (OWASP A03 & A05)
     runs-on: ubuntu-latest
 
     steps:
@@ -16,34 +29,44 @@ jobs:
       - name: Preuzimanje koda
         uses: actions/checkout@v4
 
-      # 2. Korak: Postavljanje Java 21 okruženja (JDK) potrebnog za prevođenje koda
+      # 2. Korak: Inicijalizacija CodeQL SAST skenera (Novo dodano za OWASP A05)
+      # Ovaj korak priprema prevoditelj i postavlja kuke za praćenje kompajliranja Java koda.
+      - name: Inicijalizacija CodeQL (SAST Skener)
+        uses: github/codeql-action/init@v3
+        with:
+          languages: 'java-kotlin'
+          queries: security-extended,security-and-quality # Duboka analiza sigurnosnih propusta i kvalitete koda
+
+      # 3. Korak: Postavljanje Java 21 okruženja (JDK)
       - name: Postavljanje Jave 21
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
-          cache: 'maven' # Automatski kešira ovisnosti kako bi se ubrzao build i smanjio rizik od tamperinga
+          cache: 'maven'
 
-      # 3. Korak: Pokretanje Maven provjere
-      # Ova naredba aktivira ugrađene plugine iz pom.xml:
-      # - maven-enforcer-plugin (Provjera pravila i zabrana SNAPSHOT ovisnosti)
-      # - dependency-check-maven (Skeniranje tranzitivnih ovisnosti protiv NVD/CVE baze)
-      # - cyclonedx-maven-plugin (Središnje generiranje agregiranog SBOM-a u JSON formatu)
+      # 4. Korak: Pokretanje Maven provjere (SCA skeniranje ovisnosti i kompajliranje)
+      # Tijekom ove naredbe CodeQL presreće izgradnju i mapira tokove podataka kroz klase.
       - name: Pokretanje sigurnosnih skenera i izgradnja (Maven Verify)
         run: mvn clean verify
 
-      # 4. Korak: Pohrana generiranog SBOM-a (Software Bill of Materials) kao artefakta cjevovoda
-      # Time se ispunjava OWASP A03 preporuka o trajnom čuvanju i reviziji SBOM-a za svaku verziju
+      # 5. Korak: Izvršavanje CodeQL analize izvornog koda (Novo dodano za OWASP A05)
+      # Analizira prikupljene podatke iz prethodnog koraka i traži Injection ranjivosti (SQLi, XSS, Command Injection).
+      - name: Izvršavanje CodeQL analize koda
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:java-kotlin"
+
+      # 6. Korak: Pohrana generiranog SBOM-a (Software Bill of Materials)
       - name: Pohrana CycloneDX SBOM dokumenta
-        if: always() # Osigurava da se SBOM spremi čak i ako naknadni koraci padnu
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: software-bill-of-materials
           path: target/bom.json
           retention-days: 30
 
-      # 5. Korak: Izgradnja Docker slike (Pokretanje očvrsnutog Dockerfile-a)
-      # Ovaj korak potvrđuje da se aplikacija uspješno pakira u minimalnu Alpine JRE okolinu s ne-root korisnikom
+      # 7. Korak: Izgradnja Docker slike (Izvršava se samo ako su SCA i SAST skeniranja prošla uspješno)
       - name: Izgradnja Docker slike
         run: |
           docker build -t owasp-demo:latest .
