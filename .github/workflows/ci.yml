@@ -8,7 +8,7 @@ on:
 
 jobs:
   secure-build:
-    name: Izgradnja projekta i SCA Skeniranje (OWASP A03)
+    name: Izgradnja projekta, SCA Skeniranje i Verifikacija Dizajna (OWASP A03 & A06)
     runs-on: ubuntu-latest
 
     steps:
@@ -22,28 +22,37 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          cache: 'maven' # Automatski kešira ovisnosti kako bi se ubrzao build i smanjio rizik od tamperinga
+          cache: 'maven'
 
-      # 3. Korak: Pokretanje Maven provjere
-      # Ova naredba aktivira ugrađene plugine iz pom.xml:
-      # - maven-enforcer-plugin (Provjera pravila i zabrana SNAPSHOT ovisnosti)
-      # - dependency-check-maven (Skeniranje tranzitivnih ovisnosti protiv NVD/CVE baze)
-      # - cyclonedx-maven-plugin (Središnje generiranje agregiranog SBOM-a u JSON formatu)
-      - name: Pokretanje sigurnosnih skenera i izgradnja (Maven Verify)
+      # =========================================================================
+      # OWASP A06 ZAŠTITA: AUTOMATIZIRANO SKENIRANJE SIGURNOSNOG DIZAJNA (SAST)
+      # =========================================================================
+      # Koristimo Semgrep/SonarQube/Trivy (ovdje Trivy kao laganu i moćnu opciju)
+      # kako bismo u ranom stadiju otkrili strukturne i dizajnerske propuste u kodu
+      # (CWE-269, CWE-501, loše upravljanje povjerljivim podacima).
+      - name: Statika analiza dizajna i koda (SAST - OWASP A06)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          security-checks: 'vuln,config'
+          format: 'table'
+          exit-code: '1' # Cjevovod će pasti ako pronađe kritične dizajnerske propuste
+
+      # 3. Korak: Pokretanje Maven provjere (SCA, Enforcer i Unit/Integration testovi)
+      # [AŽURIRANO ZA A06]: Pokretanje testova koji provjeravaju poslovnu logiku i stanja grešaka (Misuse-cases)
+      - name: Pokretanje sigurnosnih skenera, testova dizajna i izgradnja
         run: mvn clean verify
 
-      # 4. Korak: Pohrana generiranog SBOM-a (Software Bill of Materials) kao artefakta cjevovoda
-      # Time se ispunjava OWASP A03 preporuka o trajnom čuvanju i reviziji SBOM-a za svaku verziju
+      # 4. Korak: Pohrana generiranog SBOM-a
       - name: Pohrana CycloneDX SBOM dokumenta
-        if: always() # Osigurava da se SBOM spremi čak i ako naknadni koraci padnu
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: software-bill-of-materials
           path: target/bom.json
           retention-days: 30
 
-      # 5. Korak: Izgradnja Docker slike (Pokretanje očvrsnutog Dockerfile-a)
-      # Ovaj korak potvrđuje da se aplikacija uspješno pakira u minimalnu Alpine JRE okolinu s ne-root korisnikom
+      # 5. Korak: Izgradnja Docker slike
       - name: Izgradnja Docker slike
         run: |
           docker build -t owasp-demo:latest .
