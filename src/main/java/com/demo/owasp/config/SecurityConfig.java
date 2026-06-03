@@ -17,7 +17,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity
+// [OWASP A06 ZAŠTITA]: Omogućavanje provjere autorizacije na razini metoda (npr. @PreAuthorize).
+// Dizajniramo aplikaciju po principu "Najmanjih privilegija" (CWE-269) čime osiguravamo kontrolu na više razina.
+@EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
     private final JwtService jwtService;
@@ -28,9 +30,6 @@ public class SecurityConfig {
         this.allowedOrigins = allowedOrigins;
     }
 
-    // =========================================================================
-    // OWASP A02: IZOLIRANI LANAC ZA H2 KONZOLU (Aktivno ISKLJUČIVO na 'dev' profilu)
-    // =========================================================================
     @Bean
     @Profile("dev")
     @Order(0)
@@ -43,9 +42,6 @@ public class SecurityConfig {
                 .build();
     }
 
-    // =========================================================================
-    // GLAVNI SIGURNOSNI LANAC APLIKACIJE (Sadrži OWASP A01, A02, A04 zaštitu)
-    // =========================================================================
     @Bean
     @Order(1)
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -58,27 +54,25 @@ public class SecurityConfig {
                     config.setAllowedHeaders(java.util.List.of("Authorization", "Content-Type"));
                     return config;
                 }))
-                // -----------------------------------------------------------------
-                // OWASP A04: HARDENING TRANSPORTNOG SLOJA I SPREČAVANJE CURENJA PODATAKA
-                // -----------------------------------------------------------------
                 .headers(headers -> headers
-                        // 1. Aktivacija HSTS-a (HTTP Strict Transport Security) -> Rješava CWE-319, CWE-523
                         .httpStrictTransportSecurity(hsts -> hsts
                                 .includeSubDomains(true)
-                                .maxAgeInSeconds(31536000) // Prisila na HTTPS u trajanju od 1 godine
+                                .maxAgeInSeconds(31536000)
                         )
-                        // 2. Eksplicitna zabrana predmemoriranja (Cache Control) -> Rješava CWE-523 curenje iz preglednika
                         .cacheControl(cache -> {})
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()
+                        // [OWASP A06 ZAŠTITA - CWE-1125: Smanjenje napadačke površine]:
+                        // Eksplicitno definiramo da rute za upravljanje zadacima zahtijevaju uloge,
+                        // onemogućujući nesiguran defaultni pristup (Paved Road / Secure Default).
+                        .requestMatchers("/tasks/**").hasAnyRole("USER", "ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(new JwtFilter(jwtService), UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
 
-    // OWASP A04 & A02 HASHING: Adaptivno i soljeno sažimanje lozinki (BCrypt sa CSPRNG) -> Rješava CWE-916
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();

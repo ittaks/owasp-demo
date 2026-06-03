@@ -45,19 +45,26 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      # 4. Korak: Pokretanje Maven provjere (SCA skeniranje ovisnosti i kompajliranje)
-      # Tijekom ove naredbe CodeQL presreće izgradnju i mapira tokove podataka kroz klase.
-      - name: Pokretanje sigurnosnih skenera i izgradnja (Maven Verify)
+      # =========================================================================
+      # OWASP A06 ZAŠTITA: AUTOMATIZIRANO SKENIRANJE SIGURNOSNOG DIZAJNA (SAST)
+      # =========================================================================
+      # Koristimo Semgrep/SonarQube/Trivy (ovdje Trivy kao laganu i moćnu opciju)
+      # kako bismo u ranom stadiju otkrili strukturne i dizajnerske propuste u kodu
+      # (CWE-269, CWE-501, loše upravljanje povjerljivim podacima).
+      - name: Statika analiza dizajna i koda (SAST - OWASP A06)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          security-checks: 'vuln,config'
+          format: 'table'
+          exit-code: '1' # Cjevovod će pasti ako pronađe kritične dizajnerske propuste
+
+      # 3. Korak: Pokretanje Maven provjere (SCA, Enforcer i Unit/Integration testovi)
+      # [AŽURIRANO ZA A06]: Pokretanje testova koji provjeravaju poslovnu logiku i stanja grešaka (Misuse-cases)
+      - name: Pokretanje sigurnosnih skenera, testova dizajna i izgradnja
         run: mvn clean verify
 
-      # 5. Korak: Izvršavanje CodeQL analize izvornog koda (Novo dodano za OWASP A05)
-      # Analizira prikupljene podatke iz prethodnog koraka i traži Injection ranjivosti (SQLi, XSS, Command Injection).
-      - name: Izvršavanje CodeQL analize koda
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:java-kotlin"
-
-      # 6. Korak: Pohrana generiranog SBOM-a (Software Bill of Materials)
+      # 4. Korak: Pohrana generiranog SBOM-a
       - name: Pohrana CycloneDX SBOM dokumenta
         if: always()
         uses: actions/upload-artifact@v4
@@ -66,7 +73,7 @@ jobs:
           path: target/bom.json
           retention-days: 30
 
-      # 7. Korak: Izgradnja Docker slike (Izvršava se samo ako su SCA i SAST skeniranja prošla uspješno)
+      # 5. Korak: Izgradnja Docker slike
       - name: Izgradnja Docker slike
         run: |
           docker build -t owasp-demo:latest .

@@ -11,16 +11,18 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-
 import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class TaskService {
-
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final XmlParserService xmlParserService;
 
+    // [OWASP A06 ZAŠTITA]: Maksimalan broj dopuštenih zadataka po korisniku (Business Logic Limit).
+    // Štiti od scenarija masovnog kreiranja zapisa (Denial of Wallet / Resource Exhaustion - scenario br. 2 iz dokumentacije).
+    private static final int MAX_TASLES_PER_USER = 100;
 
     private TaskResponse mapToResponse(Task task) {
         TaskResponse response = new TaskResponse();
@@ -34,45 +36,45 @@ public class TaskService {
     public TaskResponse createTaskForUser(TaskRequest taskRequest, String username) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // [OWASP A06 ZAŠTITA - CWE-799 / CWE-841]: Provjera stanja i poslovnih limita prije perzistencije.
+        // Sprječavamo napadača da kroz automatizirane skripte preplavi bazu podataka i naruši stabilnost sustava.
+        long existingCount = taskRepository.findByOwnerId(user.getId()).size();
+        if (existingCount >= MAX_TASLES_PER_USER) {
+            throw new IllegalStateException("Limit kreiranja zadataka je dosegnut. Sustav štiti resurse od zloupotrebe.");
+        }
+
         Task task = new Task();
         task.setTitle(taskRequest.getTitle());
         task.setDescription(taskRequest.getDescription());
         task.setOwner(user);
         return mapToResponse(taskRepository.save(task));
     }
-    // SIGURAN DOHVAT: Ako je korisnik ADMIN, vidi sve, inače se baza filtrira isključivo po ID-u vlasnika
+
     public List<TaskResponse> getTasksForUser(String username) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        List<Task> tasks = "ADMIN".equalsIgnoreCase(user.getRole())
-                ? taskRepository.findAll()
-                : taskRepository.findByOwnerId(user.getId());
-
+        List<Task> tasks = "ADMIN".equalsIgnoreCase(user.getRole()) ? taskRepository.findAll() : taskRepository.findByOwnerId(user.getId());
         return tasks.stream().map(this::mapToResponse).toList();
     }
 
-    // STROGA KRITIČNA ZAŠTITA OD IDOR-a: Eksplicitna verifikacija vlasništva nad resursom
     public Task updateTaskForUser(String taskId, TaskRequest request, String username) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("Task not found"));
 
-        // Provjera podudara li se autentificirani korisnik s vlasnikom zapisa u bazi podataka
         if (!task.getOwner().getUsername().equals(username)) {
             throw new AccessDeniedException("Access Denied: You do not have permissions to modify this task.");
         }
-
         task.setTitle(request.getTitle());
         task.setDescription(request.getDescription());
-
         return taskRepository.save(task);
     }
-    // SIGURNA LOGIKA BRISANJA: Objedinjena provjera uloga i vlasništva zapisa
+
     public void deleteTaskForUser(String taskId, String username) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("Task not found"));
 
-        // Dopusti brisanje isključivo ako je korisnik stvarni vlasnik zapisa ILI ako ima ulogu ADMIN
         boolean isAdmin = userRepository.findByUsername(username)
                 .map(u -> "ADMIN".equalsIgnoreCase(u.getRole())).orElse(false);
 
@@ -82,26 +84,29 @@ public class TaskService {
         taskRepository.delete(task);
     }
 
-    /**
-     * OWASP A01: Sigurna implementacija uvoza datoteka
-     * Koristi kriptografski verificirane identifikatore sesije iz konteksta umjesto
-     * parametara zahtjeva kako bi se spriječila horizontalna eskalacija privilegija.
-     */
     public TaskResponse createTaskFromXmlForUser(MultipartFile file, String username) {
-        // 1. Sigurna obrada dolaznog toka podataka korištenjem obrambenih konfiguracija parsera (OWASP A03)
-        TaskFromXmlRequest dto = xmlParserService.parse(file);
+        // [OWASP A06 ZAŠTITA - CWE-434: Unrestricted Upload of File with Dangerous Type]:
+        // Provjera tipa i ekstenzije datoteke na razini aplikacijskog dizajna prije prosljeđivanja parseru.
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.equals("text/xml") && !contentType.equals("application/xml")) {
+            throw new IllegalArgumentException("Nedopušten tip datoteke! Sustav prihvaća isključivo validne XML strukture.");
+        }
 
-        // 2. Dohvaćanje vlasnika konteksta strogo putem povezanih provjerenih tokena identiteta (OWASP A01)
+        TaskFromXmlRequest dto = xmlParserService.parse(file);
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Neuspjela validacija korisničkog konteksta."));
 
-        // 3. Izgradnja i perzistencija svojstava resursa
+        // Provjera limita i ovdje za workflow robusnost
+        long existingCount = taskRepository.findByOwnerId(user.getId()).size();
+        if (existingCount >= MAX_TASLES_PER_USER) {
+            throw new IllegalStateException("Limit kreiranja zadataka je dosegnut.");
+        }
+
         Task task = new Task();
         task.setTitle(dto.getTitle());
         task.setDescription(dto.getDescription());
         task.setOwner(user);
 
-        // 4. Povratak sigurnog DTO objekta radi enkapsulacije vidljivosti prema klijentu (OWASP A02)
         return mapToResponse(taskRepository.save(task));
     }
 }
