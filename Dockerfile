@@ -4,7 +4,6 @@ RUN apk upgrade --no-cache
 # OWASP A03: Kreiranje namjenskog ne-root korisnika radi primjene načela najmanjih privilegija
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
-// Prebacivanje u kontekst ograničenog korisnika
 USER appuser
 
 # Kopiranje artefakta uz eksplicitnu dodjelu vlasništva kreiranom korisniku
