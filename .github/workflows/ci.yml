@@ -20,7 +20,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Checkout source
         uses: actions/checkout@v5
 
@@ -30,6 +29,10 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
+
+      # [DODANO RJEŠENJE]: Preuzimanje ovisnosti lokalno kako bi Trivy izbjegao 429 grešku
+      - name: Resolve Maven dependencies
+        run: mvn dependency:go-offline
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
