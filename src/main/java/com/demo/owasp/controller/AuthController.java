@@ -5,6 +5,7 @@ import com.demo.owasp.dto.request.RegisterRequest;
 import com.demo.owasp.dto.response.UserResponse;
 import com.demo.owasp.entity.User;
 import com.demo.owasp.service.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,6 +34,14 @@ public class AuthController {
      */
     @PostMapping("/login")
     public String login(@RequestBody LoginRequest request) {
+
         return authService.login(request);
     }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(HttpServletRequest request) {
+        authService.logout(request);
+        return ResponseEntity.noContent().build();
+    }
+
 }

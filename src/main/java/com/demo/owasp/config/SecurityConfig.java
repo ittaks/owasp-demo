@@ -2,6 +2,7 @@ package com.demo.owasp.config;
 
 import com.demo.owasp.security.JwtFilter;
 import com.demo.owasp.security.JwtService;
+import com.demo.owasp.security.TokenBlacklistService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,10 +24,12 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtService jwtService;
+    private final TokenBlacklistService tokenBlacklistService;
     private final String allowedOrigins;
 
-    public SecurityConfig(JwtService jwtService, @Value("${app.cors.allowed-origins}") String allowedOrigins) {
+    public SecurityConfig(JwtService jwtService, @Value("${app.cors.allowed-origins}") String allowedOrigins, TokenBlacklistService tokenBlacklistService) {
         this.jwtService = jwtService;
+        this.tokenBlacklistService = tokenBlacklistService;
         this.allowedOrigins = allowedOrigins;
     }
 
@@ -69,12 +72,19 @@ public class SecurityConfig {
                         .requestMatchers("/tasks/**").hasAnyRole("USER", "ADMIN")
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(new JwtFilter(jwtService), UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(new JwtFilter(jwtService, tokenBlacklistService),
+                        UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+
+        /*
+         * OWASP A07:2025 ZAŠTITA
+         * BCrypt strength povećan s default 10 na 12.
+         * Otežava offline brute-force napade nad ukradenim hash vrijednostima.
+         */
+        return new BCryptPasswordEncoder(12);
     }
 }

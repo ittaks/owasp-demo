@@ -16,11 +16,15 @@ import java.util.List;
 public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final TokenBlacklistService tokenBlacklistService;
 
-    public JwtFilter(JwtService jwtService) {
+    public JwtFilter(
+            JwtService jwtService,
+            TokenBlacklistService tokenBlacklistService
+    ) {
         this.jwtService = jwtService;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
-
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
@@ -31,7 +35,20 @@ public class JwtFilter extends OncePerRequestFilter {
 
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
-
+            /*
+             * OWASP A07:2025 ZAŠTITA
+             *
+             * Odbijamo opozvane tokene.
+             */
+            String tokenId = jwtService.extractTokenId(token);
+            if (tokenBlacklistService.isBlacklisted(tokenId)) {
+                chain.doFilter(request, response);
+                return;
+            }
+            if (!jwtService.isActiveToken(tokenId)) {
+                chain.doFilter(request, response);
+                return;
+            }
             try {
                 String username = jwtService.extractUsername(token);
                 // Extract the role claim string ("USER" or "ADMIN") from your JWT payload
