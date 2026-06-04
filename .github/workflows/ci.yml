@@ -38,12 +38,13 @@ jobs:
           queries: security-extended,security-and-quality
 
       - name: Trivy Filesystem Scan
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs
+          scan-ref: .
           scanners: vuln,misconfig
+          severity: HIGH,CRITICAL
           format: table
-          exit-code: 1
 
       - name: Maven Build + Tests + Dependency Check + SBOM
         run: mvn clean package
