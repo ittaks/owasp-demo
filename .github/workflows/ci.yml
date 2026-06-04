@@ -62,7 +62,6 @@ jobs:
           name: software-bill-of-materials
           path: |
             target/bom.json
-            target/bom.xml
           retention-days: 30
 
       - name: Build Docker Image
