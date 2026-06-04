@@ -55,13 +55,12 @@ jobs:
       - name: Debug target folder
         run: find target -type f
 
-      - name: Upload CycloneDX SBOM
+      - name: Upload SBOM
         if: always()
         uses: actions/upload-artifact@v5
         with:
           name: software-bill-of-materials
-          path: |
-            target/bom.json
+          path: target/classes/META-INF/sbom/application.cdx.json
           retention-days: 30
 
       - name: Build Docker Image
