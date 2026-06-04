@@ -50,7 +50,7 @@ jobs:
           format: table
 
       - name: Maven Build + Tests + Dependency Check + SBOM
-        run: mvn clean package
+        run: mvn clean verify
 
       - name: Debug target folder
         run: find target -type f
