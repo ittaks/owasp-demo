@@ -7,6 +7,6 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser
 
 # Kopiranje artefakta uz eksplicitnu dodjelu vlasništva kreiranom korisniku
-COPY --chown=appuser:appgroup target/owasp-demo.jar app.jar
+COPY --chown=appuser:appgroup target/owasp-demo-0.0.1-SNAPSHOT.jar app.jar
 
 ENTRYPOINT ["java","-jar","/app.jar"]
