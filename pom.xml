@@ -137,6 +137,8 @@
                     </execution>
                 </executions>
                 <configuration>
+                    <!--suppress UnresolvedMavenProperty -->
+                    <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
                     <failBuildOnCVSS>7.0</failBuildOnCVSS>
                     <autoUpdate>true</autoUpdate>
                 </configuration>
