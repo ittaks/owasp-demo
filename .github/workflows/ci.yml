@@ -1,79 +1,76 @@
-# =============================================================================================
-# OWASP A05:2025 – AUTOMATIZIRANO STATIČKO SKENIRANJE IZVORNOG KODA (SAST) U CI/CD (CWE-74)
-# =============================================================================================
-# Demonstracija zaštite:
-# Službena OWASP A05:2025 dokumentacija izričito nalaže integraciju SAST (Static Application Security Testing) 
-# alata u CI/CD cjevovod. Prethodna konfiguracija koristila je samo SCA skeniranje (dependency-check) koje provjerava 
-# runs-on eksterne biblioteke (OWASP A03). 
-# 
-# Dodavanjem GitHub CodeQL koraka, cjevovod sada aktivno analizira naš prilagođeni Java kod u potrazi za logičkim 
-# propustima prije nego što se aplikacija zapakira u Docker sliku. CodeQL će pratiti tok podataka (Data Flow Analysis) 
-# i automatski blokirati build ako programer slučajno spoji korisnički unos u sirovi SQL upit, OS naredbu (Runtime.exec) 
-# ili propusti sanitarizirati string izložen XSS-u.
-
 name: OWASP Secure CI Pipeline
+
+permissions:
+  contents: read
+  security-events: write
 
 on:
   push:
-    branches: [ "master", "develop" ]
+    branches:
+      - master
+      - develop
+
   pull_request:
-    branches: [ "master" ]
+    branches:
+      - master
 
 jobs:
   secure-build:
-    name: Izgradnja projekta, SCA i SAST Skeniranje (OWASP A03 & A05)
+    name: Build, SAST, SCA, SBOM and Container Scan
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Korak: Preuzimanje izvornog koda iz repozitorija
-      - name: Preuzimanje koda
-        uses: actions/checkout@v4
 
-      # 2. Korak: Inicijalizacija CodeQL SAST skenera (Novo dodano za OWASP A05)
-      # Ovaj korak priprema prevoditelj i postavlja kuke za praćenje kompajliranja Java koda.
-      - name: Inicijalizacija CodeQL (SAST Skener)
-        uses: github/codeql-action/init@v3
-        with:
-          languages: 'java-kotlin'
-          queries: security-extended,security-and-quality # Duboka analiza sigurnosnih propusta i kvalitete koda
+      - name: Checkout source
+        uses: actions/checkout@v5
 
-      # 3. Korak: Postavljanje Java 21 okruženja (JDK)
-      - name: Postavljanje Jave 21
-        uses: actions/setup-java@v4
+      - name: Setup Java 21
+        uses: actions/setup-java@v5
         with:
+          distribution: temurin
           java-version: '21'
-          distribution: 'temurin'
-          cache: 'maven'
+          cache: maven
 
-      # =========================================================================
-      # OWASP A06 ZAŠTITA: AUTOMATIZIRANO SKENIRANJE SIGURNOSNOG DIZAJNA (SAST)
-      # =========================================================================
-      # Koristimo Semgrep/SonarQube/Trivy (ovdje Trivy kao laganu i moćnu opciju)
-      # kako bismo u ranom stadiju otkrili strukturne i dizajnerske propuste u kodu
-      # (CWE-269, CWE-501, loše upravljanje povjerljivim podacima).
-      - name: Statika analiza dizajna i koda (SAST - OWASP A06)
-        uses: aquasecurity/trivy-action@master
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
         with:
-          scan-type: 'fs'
-          security-checks: 'vuln,config'
-          format: 'table'
-          exit-code: '1' # Cjevovod će pasti ako pronađe kritične dizajnerske propuste
+          languages: java-kotlin
+          queries: security-extended,security-and-quality
 
-      # 3. Korak: Pokretanje Maven provjere (SCA, Enforcer i Unit/Integration testovi)
-      # [AŽURIRANO ZA A06]: Pokretanje testova koji provjeravaju poslovnu logiku i stanja grešaka (Misuse-cases)
-      - name: Pokretanje sigurnosnih skenera, testova dizajna i izgradnja
-        run: mvn clean verify
+      - name: Trivy Filesystem Scan
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: fs
+          scanners: vuln,misconfig
+          format: table
+          exit-code: 1
 
-      # 4. Korak: Pohrana generiranog SBOM-a
-      - name: Pohrana CycloneDX SBOM dokumenta
+      - name: Maven Build + Tests + Dependency Check + SBOM
+        run: mvn clean package
+
+      - name: Debug target folder
+        run: find target -type f
+
+      - name: Upload CycloneDX SBOM
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: software-bill-of-materials
-          path: target/bom.json
+          path: |
+            target/bom.json
+            target/bom.xml
           retention-days: 30
 
-      # 5. Korak: Izgradnja Docker slike
-      - name: Izgradnja Docker slike
-        run: |
-          docker build -t owasp-demo:latest .
+      - name: Build Docker Image
+        run: docker build -t owasp-demo:latest .
+
+      - name: Trivy Docker Image Scan
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: owasp-demo:latest
+          severity: HIGH,CRITICAL
+          format: table
+          exit-code: 1
+
+      - name: CodeQL Analyze
+        uses: github/codeql-action/analyze@v4

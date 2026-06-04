@@ -8,6 +8,7 @@ import com.demo.owasp.exception.BadCredentialsException;
 import com.demo.owasp.repository.UserRepository;
 import com.demo.owasp.security.CommonPasswordValidator;
 import com.demo.owasp.security.JwtService;
+import com.demo.owasp.security.LoginAttemptService;
 import com.demo.owasp.security.TokenBlacklistService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +16,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor

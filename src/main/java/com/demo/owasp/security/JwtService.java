@@ -67,7 +67,7 @@ public class JwtService {
                                         + 1000L * 60 * 15
                         )
                 )
-                .signWith(key)
+                .signWith(key, SignatureAlgorithm.HS512) //a8
                 .compact();
     }
 
