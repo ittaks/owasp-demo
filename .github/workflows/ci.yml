@@ -66,7 +66,7 @@ jobs:
         run: docker build -t owasp-demo:latest .
 
       - name: Trivy Docker Image Scan
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: owasp-demo:latest
           severity: HIGH,CRITICAL
