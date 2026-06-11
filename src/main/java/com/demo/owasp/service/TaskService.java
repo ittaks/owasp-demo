@@ -5,9 +5,11 @@ import com.demo.owasp.dto.request.TaskRequest;
 import com.demo.owasp.dto.response.TaskResponse;
 import com.demo.owasp.entity.Task;
 import com.demo.owasp.entity.User;
+import com.demo.owasp.exception.ResourceNotFoundException;
 import com.demo.owasp.repository.TaskRepository;
 import com.demo.owasp.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -61,7 +63,7 @@ public class TaskService {
 
     public Task updateTaskForUser(String taskId, TaskRequest request, String username) {
         Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new RuntimeException("Task not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found"));
 
         if (!task.getOwner().getUsername().equals(username)) {
             throw new AccessDeniedException("Access Denied: You do not have permissions to modify this task.");
@@ -73,7 +75,7 @@ public class TaskService {
 
     public void deleteTaskForUser(String taskId, String username) {
         Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new RuntimeException("Task not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found"));
 
         boolean isAdmin = userRepository.findByUsername(username)
                 .map(u -> "ADMIN".equalsIgnoreCase(u.getRole())).orElse(false);
@@ -108,5 +110,19 @@ public class TaskService {
         task.setOwner(user);
 
         return mapToResponse(taskRepository.save(task));
+    }
+
+    public TaskResponse getTaskByIdForUser(String id, String username) {
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found"));
+
+        boolean isAdmin = userRepository.findByUsername(username)
+                .map(u -> "ADMIN".equalsIgnoreCase(u.getRole())).orElse(false);
+
+        if (!task.getOwner().getUsername().equals(username) && !isAdmin) {
+            throw new AccessDeniedException("Access Denied: You do not have permissions to view this task.");
+        }
+
+        return mapToResponse(task);
     }
 }

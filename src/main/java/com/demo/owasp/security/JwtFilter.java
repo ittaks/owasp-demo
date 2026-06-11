@@ -35,28 +35,24 @@ public class JwtFilter extends OncePerRequestFilter {
 
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
-            /*
-             * OWASP A07:2025 ZAŠTITA
-             *
-             * Odbijamo opozvane tokene.
-             */
-            String tokenId = jwtService.extractTokenId(token);
-            if (tokenBlacklistService.isBlacklisted(tokenId)) {
-                chain.doFilter(request, response);
-                return;
-            }
-            if (!jwtService.isActiveToken(tokenId)) {
-                chain.doFilter(request, response);
-                return;
-            }
+
             try {
+                /*
+                 * OWASP A07:2025 ZAŠTITA - Premješteno unutar try-catch bloka!
+                 * Ako ekstrakcija tokenId ili bilo koje tvrdnje ne uspije zbog manipulacije,
+                 * iznimka će biti sigurno uhvaćena bez rušenja aplikacije.
+                 */
+                String tokenId = jwtService.extractTokenId(token);
+
+                if (tokenBlacklistService.isBlacklisted(tokenId) || !jwtService.isActiveToken(tokenId)) {
+                    chain.doFilter(request, response);
+                    return;
+                }
+
                 String username = jwtService.extractUsername(token);
-                // Extract the role claim string ("USER" or "ADMIN") from your JWT payload
                 String role = jwtService.extractRole(token);
 
                 if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-
-                    // Spring Security hasRole('ADMIN') internally expects the prefix "ROLE_ADMIN"
                     List<SimpleGrantedAuthority> authorities = Collections.singletonList(
                             new SimpleGrantedAuthority("ROLE_" + role)
                     );
@@ -65,14 +61,19 @@ public class JwtFilter extends OncePerRequestFilter {
                             new UsernamePasswordAuthenticationToken(
                                     username,
                                     null,
-                                    authorities // Server now recognizes the user's operational scope
+                                    authorities
                             );
 
-                    // Server trusts the cryptographically signed JWT over any request parameters
                     SecurityContextHolder.getContext().setAuthentication(auth);
                 }
+
             } catch (Exception e) {
-                // Token validation/parsing failed: do not set authentication context
+                // [OWASP A07 - FAIL-SAFE DEFAULTS]: Ako je token modificiran ili neispravan,
+                // sigurnosni kontekst ostaje prazan (korisnik je anoniman) i zahtjev se odbija na razini rute.
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"Token nije valjan ili je modificiran.\"}");
+                return;
             }
         }
 
