@@ -3,6 +3,7 @@ package com.demo.owasp.config;
 import com.demo.owasp.security.JwtFilter;
 import com.demo.owasp.security.JwtService;
 import com.demo.owasp.security.TokenBlacklistService;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -64,11 +65,20 @@ public class SecurityConfig {
                         )
                         .cacheControl(cache -> {})
                 )
+                // [OWASP A01 ZAŠTITA]: Eksplicitna konfiguracija HTTP 401 za neautentificirane zahtjeve.
+                // Spring Security defaultno vraća 403, što maskira razliku između neautentificiranog (401)
+                // i neovlaštenog (403) pristupa. Ispravna semantika HTTP statusa bitna je za WAF i monitoring.
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) ->
+                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
+                )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()
+                        // [OWASP A02 ZAŠTITA]: Dopuštamo javni pristup isključivo zdravstvenom endpointu,
+                        // dok će svi ostali osjetljivi endpointi (poput /actuator/env) zahtijevati autentifikaciju kroz anyRequest().
+                        .requestMatchers("/actuator/health").permitAll()
+
                         // [OWASP A06 ZAŠTITA - CWE-1125: Smanjenje napadačke površine]:
-                        // Eksplicitno definiramo da rute za upravljanje zadacima zahtijevaju uloge,
-                        // onemogućujući nesiguran defaultni pristup (Paved Road / Secure Default).
                         .requestMatchers("/tasks/**").hasAnyRole("USER", "ADMIN")
                         .anyRequest().authenticated()
                 )

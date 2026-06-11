@@ -27,14 +27,28 @@ spring:
       include-stacktrace: never
       include-binding-errors: never
       include-message: never
-
+# =========================================================================
+# [DODANO ZA OWASP A02] - SIGURNA KONFIGURACIJA ACTUATOR ENDPOINTA
+# =========================================================================
+management:
+  endpoints:
+    web:
+      exposure:
+        # Eksplicitno izlažemo SAMO 'health' endpoint (siguran, javan za monitoring).
+        # Osjetljivi endpointi poput 'env', 'beans', 'heapdump' su onemogućeni (Smanjenje napadačke površine).
+        include: "health"
+  endpoint:
+    health:
+      # Isključujemo detaljne informacije u produkciji (npr. verzije baze podataka, detalje o disku)
+      # kako bismo spriječili curenje informacija (Information Disclosure).
+      show-details: never
 logging:
   level:
     root: INFO # U produkciji se koristi restriktivniji nivo logiranja (manji rizik od curenja podataka)
 
 # OWASP A02: Eksternalizacija tajni izvan koda (povlačenje iz okruženja s fallback vrijednostima)
 jwt:
-  secret: ${JWT_SECRET:MojaUltraSigurnaTajnaKojaImaViseOdTridesetIdvaZnaka123!}
+  secret: ${JWT_SECRET:MojaUltraSigurnaTajnaKojaImaViseOdTridesetIdvaZnaka123!Totalnojakoskrozzzz;OUDVH\S;OFVUHS}
 
 app:
   cors:
