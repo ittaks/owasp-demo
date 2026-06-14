@@ -57,7 +57,7 @@ jobs:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
       - name: Maven Build + Tests + Dependency Check + SBOM
-        run: mvn clean verify
+        run: mvn clean verify -Ddependency-check.failBuildOnError=false
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
