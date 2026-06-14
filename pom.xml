@@ -140,7 +140,6 @@
                     <nvdApiDelay>4000</nvdApiDelay>
                     <failBuildOnCVSS>7.0</failBuildOnCVSS>
                     <autoUpdate>true</autoUpdate>
-                    <suppressionFile>suppression.xml</suppressionFile>
                     <ossindexAnalyzerEnabled>false</ossindexAnalyzerEnabled>
                 </configuration>
             </plugin>
