@@ -48,7 +48,11 @@ jobs:
           scanners: vuln,misconfig
           severity: HIGH,CRITICAL
           format: table
-
+      - name: Test NVD API Key
+        run: |
+          curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" \
+          "https://services.nvd.nist.gov/rest/json/cves/2.0?resultsPerPage=1" \
+          -H "apiKey: ${{ secrets.NVD_API_KEY }}"
       # Pre-warm NVD database separately so a transient failure won't kill the build
       - name: Update NVD Database
         continue-on-error: true
@@ -57,7 +61,7 @@ jobs:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
       - name: Maven Build + Tests + Dependency Check + SBOM
-        run: mvn clean verify -Ddependency-check.failBuildOnError=false
+        run: mvn clean verify -e
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
