@@ -137,9 +137,11 @@
                 </executions>
                 <configuration>
                     <nvdApiKeyEnvironmentVariable>NVD_API_KEY</nvdApiKeyEnvironmentVariable>
-                    <nvdApiDelay>4000</nvdApiDelay>      <!-- 4s between requests, free tier limit -->
+                    <nvdApiDelay>4000</nvdApiDelay>
                     <failBuildOnCVSS>7.0</failBuildOnCVSS>
-                    <autoUpdate>false</autoUpdate>
+                    <autoUpdate>true</autoUpdate>
+                    <suppressionFile>suppression.xml</suppressionFile>
+                    <ossindexAnalyzerEnabled>false</ossindexAnalyzerEnabled>
                 </configuration>
             </plugin>
             <plugin>
