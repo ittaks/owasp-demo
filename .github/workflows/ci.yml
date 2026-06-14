@@ -49,6 +49,13 @@ jobs:
           severity: HIGH,CRITICAL
           format: table
 
+      # Pre-warm NVD database separately so a transient failure won't kill the build
+      - name: Update NVD Database
+        continue-on-error: true
+        run: mvn dependency-check:update-only
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+
       - name: Maven Build + Tests + Dependency Check + SBOM
         run: mvn clean verify
         env:

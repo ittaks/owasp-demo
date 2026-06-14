@@ -130,7 +130,7 @@
             <plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>dependency-check-maven</artifactId>
-                <version>10.0.4</version>
+                <version>12.1.1</version>
                 <executions>
                     <execution>
                         <phase>verify</phase>
@@ -141,8 +141,9 @@
                 </executions>
                 <configuration>
                     <nvdApiKeyEnvironmentVariable>NVD_API_KEY</nvdApiKeyEnvironmentVariable>
+                    <nvdApiDelay>4000</nvdApiDelay>      <!-- 4s between requests, free tier limit -->
                     <failBuildOnCVSS>7.0</failBuildOnCVSS>
-                    <autoUpdate>true</autoUpdate>
+                    <autoUpdate>false</autoUpdate>
                 </configuration>
             </plugin>
             <plugin>
