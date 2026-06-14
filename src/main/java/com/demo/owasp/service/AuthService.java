@@ -8,15 +8,18 @@ import com.demo.owasp.exception.BadCredentialsException;
 import com.demo.owasp.repository.UserRepository;
 import com.demo.owasp.security.CommonPasswordValidator;
 import com.demo.owasp.security.JwtService;
+import com.demo.owasp.security.LogSanitizer;
 import com.demo.owasp.security.LoginAttemptService;
 import com.demo.owasp.security.TokenBlacklistService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -80,6 +83,9 @@ public class AuthService {
          * username enumeration napade.
          */
         if (loginAttemptService.isLocked(username)) {
+            String safeUsername = com.demo.owasp.security.LogSanitizer.sanitize(username);
+            log.warn("SECURITY ALERT: Pokušaj prijave na zaključani korisnički račun: '{}'. Zahtjev je odbijen.",
+                    safeUsername);
             throw new BadCredentialsException("Invalid username or password.");
         }
 
@@ -98,6 +104,9 @@ public class AuthService {
          * Uspješna autentikacija resetira brojač.
          */
         loginAttemptService.loginSucceeded(username);
+        // [OWASP A09 ZAŠTITA] - Bilježenje uspješne autentifikacije s kontekstom (CWE-778)
+
+        log.info("SECURITY EVENT: Korisnik '{}' se uspješno prijavio u sustav s ulogom: '{}'.", user.getUsername(), user.getRole());
 
         return jwtService.generateToken(user.getUsername(), user.getRole());
     }
@@ -121,6 +130,10 @@ public class AuthService {
 
         String tokenId = jwtService.extractTokenId(token);
         Instant expiry = jwtService.extractExpiration(token).toInstant();
+
+        // [OWASP A09 ZAŠTITA] - Praćenje opoziva sesija
+        log.info("SECURITY EVENT: Korisnik s tokenom ID '{}' se uspješno odjavio. Token je dodan na crnu listu.", tokenId);
+
         jwtService.deactivateToken(tokenId);
         tokenBlacklistService.blacklist(tokenId, expiry);
     }

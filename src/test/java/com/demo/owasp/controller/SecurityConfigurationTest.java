@@ -51,20 +51,23 @@ class SecurityConfigurationTest {
     // OWASP A02:2025 — Ranjivost: Curenje informacija kroz Stack Trace (Information Disclosure)
     // =========================================================================
     @Test
-    @DisplayName("Globalni Exception Handler mora sakriti stacktrace i vratiti generičku poruku (Prevencija A02)")
+    @DisplayName("Globalni Exception Handler mora sakriti stacktrace i vratiti generičku poruku (Prevencija A10:2025 / A02)")
     void globalExceptionHandler_shouldNotLeakStackTrace() throws Exception {
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("")) // Šaljemo namjerno neispravan, prazan body kako bismo izazvali iznimku
-                // Budući da GlobalExceptionHandler mapira neočekivane pogreške na status 500, očekujemo 500
-                .andExpect(status().isInternalServerError())
+                        .content("")) // Šaljemo namjerno prazan body
+                // Ispravak: Tvoj sigurni handler sada vraća 400 Bad Request za nečitljiv JSON, što je ispravno!
+                .andExpect(status().isBadRequest())
                 .andExpect(result -> {
                     String responseBody = result.getResponse().getContentAsString();
 
-                    // Ključne provjere za OWASP A02 - Podaci ne smiju procuriti u tijelo HTTP odgovora!
+                    // Ključne provjere za OWASP - Podaci ne smiju procuriti u tijelo HTTP odgovora!
                     assertFalse(responseBody.contains("Exception"), "HTTP odgovor ne smije sadržavati riječ 'Exception'!");
                     assertFalse(responseBody.contains("at com.demo.owasp"), "HTTP odgovor je procurio interni stack trace aplikacije!");
-                    assertTrue(responseBody.contains("An unexpected error occurred"), "Klijent mora dobiti generičku, sigurnu poruku o pogrešci.");
+
+                    // Provjera nove, specifične i sigurne poruke koju vraća tvoj HttpMessageNotReadableException handler
+                    assertTrue(responseBody.contains("malformed and cannot be parsed"),
+                            "Klijent mora dobiti generičku, sigurnu poruku o neispravnom JSON-u.");
                 });
     }
     // =========================================================================

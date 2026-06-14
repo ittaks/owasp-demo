@@ -4,6 +4,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -13,6 +14,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
+@Slf4j
 public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
@@ -68,8 +70,10 @@ public class JwtFilter extends OncePerRequestFilter {
                 }
 
             } catch (Exception e) {
-                // [OWASP A07 - FAIL-SAFE DEFAULTS]: Ako je token modificiran ili neispravan,
-                // sigurnosni kontekst ostaje prazan (korisnik je anoniman) i zahtjev se odbija na razini rute.
+                // [OWASP A09 ZAŠTITA] - Logiranje pokušaja manipulacije autorizacijskim mehanizmima
+                // Ne logiramo cijeli stacktrace (e) s log.error da ne zagušujemo disk, već radimo čist warn
+                log.warn("SECURITY WARNING: Detektiran je nevažeći, istekao ili modificirani JWT token. Pristup odbijen. Detalji: {}", e.getMessage());
+
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.setContentType("application/json");
                 response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"Token nije valjan ili je modificiran.\"}");
