@@ -66,15 +66,17 @@ class CryptographicFailuresTest {
     @DisplayName("JWT servis mora odbiti tokene modificirane s nesigurnim algoritmom 'none' ili potpisane tuđim ključem")
     void jwtValidation_shouldRejectNoneAlgorithmAndInvalidSignatures() {
         // Kreiramo maliciozni JWT s algoritmom 'none' (CWE-327 / CWE-1241)
-        String maliciousNoneToken = Jwts.builder()
-                .setSubject("admin")
-                .compact(); // Bez potpisa i algoritma
+        var wrongKey = Keys.hmacShaKeyFor(
+                "MaliSlabiKljucKojiNemaDovoljnoBitaZaHS512_TotalnoNevazeciKljuc123!"
+                        .getBytes(StandardCharsets.UTF_8));
 
-        // Kreiramo napadački token potpisan s posve drugim, slabim ključem
-        var wrongKey = Keys.hmacShaKeyFor("MaliSlabiKljucKojiNemaDovoljnoBitaZaHS512_TotalnoNevazeciKljuc123!".getBytes(StandardCharsets.UTF_8));
         String attackerToken = Jwts.builder()
-                .setSubject("admin")
-                .signWith(wrongKey, SignatureAlgorithm.HS512)
+                .subject("admin")        // novo u 0.12.x
+                .signWith(wrongKey)      // novo u 0.12.x - algoritam se detektira automatski
+                .compact();
+
+        String maliciousNoneToken = Jwts.builder()
+                .subject("admin")        // novo u 0.12.x
                 .compact();
 
         // Verificiramo da naš JwtService baca iznimku i odbija obradu takvih tokena
