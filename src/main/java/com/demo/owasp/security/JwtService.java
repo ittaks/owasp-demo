@@ -5,6 +5,7 @@ import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
@@ -33,7 +34,8 @@ public class JwtService {
     private final Set<String> activeTokens = ConcurrentHashMap.newKeySet();
     private static final String ISSUER = "owasp-demo";
     private static final String AUDIENCE = "owasp-demo-client";
-    private final Key key;// OWASP A02: Čitanje eksternaliziranog ključa umjesto generiranja novog pri svakom startu
+    private final SecretKey key;
+
     public JwtService(@Value("${jwt.secret}") String secret) {
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
@@ -102,19 +104,19 @@ public class JwtService {
     }
 
     private Jws<Claims> parse(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(key)
+        return Jwts.parser()
+                .verifyWith(key)
                 .build()
-                .parseClaimsJws(token);
+                .parseSignedClaims(token);
     }
 
     private Claims validateAndGetClaims(String token) {
 
-        Claims claims = Jwts.parserBuilder()
-                        .setSigningKey(key)
-                        .build()
-                        .parseClaimsJws(token)
-                        .getBody();
+        Claims claims = Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
 
         /*
          * OWASP A07:2025 ZAŠTITA
