@@ -64,6 +64,15 @@ public class SecurityConfig {
                                 .maxAgeInSeconds(31536000)
                         )
                         .cacheControl(cache -> {})
+                        .frameOptions(frame -> frame.deny())
+                        .contentSecurityPolicy(csp -> csp
+                                .policyDirectives(
+                                        "default-src 'self'; " +
+                                                "frame-ancestors 'none'; " +
+                                                "object-src 'none'; " +
+                                                "base-uri 'self'"
+                                )
+                        )
                 )
                 // [OWASP A01 ZAŠTITA]: Eksplicitna konfiguracija HTTP 401 za neautentificirane zahtjeve.
                 // Spring Security defaultno vraća 403, što maskira razliku između neautentificiranog (401)
