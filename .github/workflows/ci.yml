@@ -3,6 +3,7 @@ name: OWASP Secure CI Pipeline
 permissions:
   contents: read
   security-events: write
+  issues: write
 
 on:
   push:

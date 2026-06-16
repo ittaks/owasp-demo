@@ -83,12 +83,19 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()
-                        // [OWASP A02 ZAŠTITA]: Dopuštamo javni pristup isključivo zdravstvenom endpointu,
-                        // dok će svi ostali osjetljivi endpointi (poput /actuator/env) zahtijevati autentifikaciju kroz anyRequest().
-                        .requestMatchers("/actuator/health").permitAll()
 
-                        // [OWASP A06 ZAŠTITA - CWE-1125: Smanjenje napadačke površine]:
+                        // HEALTH endpointi (safe exposure)
+                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+
+                        // opcionalno (ako želiš public info)
+                        .requestMatchers("/actuator/info").permitAll()
+
+                        // sve ostalo actuatora zaključano
+                        .requestMatchers("/actuator/**").hasRole("ADMIN")
+
+                        // business endpoints
                         .requestMatchers("/tasks/**").hasAnyRole("USER", "ADMIN")
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(new JwtFilter(jwtService, tokenBlacklistService),
