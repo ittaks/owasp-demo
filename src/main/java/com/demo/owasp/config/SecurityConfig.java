@@ -45,7 +45,22 @@ public class SecurityConfig {
                 .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
                 .build();
     }
+    @Bean
+    @Order(0)
+    public SecurityFilterChain actuatorSecurityFilterChain(HttpSecurity http) throws Exception {
+        return http
+                .securityMatcher("/actuator/**")
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth
+                        // SAFE endpoints
+                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        .requestMatchers("/actuator/info").permitAll()
 
+                        // everything else locked down
+                        .anyRequest().hasRole("ADMIN")
+                )
+                .build();
+    }
     @Bean
     @Order(1)
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -83,17 +98,6 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()
-
-                        // HEALTH endpointi (safe exposure)
-                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
-
-                        // opcionalno (ako želiš public info)
-                        .requestMatchers("/actuator/info").permitAll()
-
-                        // sve ostalo actuatora zaključano
-                        .requestMatchers("/actuator/**").hasRole("ADMIN")
-
-                        // business endpoints
                         .requestMatchers("/tasks/**").hasAnyRole("USER", "ADMIN")
 
                         .anyRequest().authenticated()
