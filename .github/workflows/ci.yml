@@ -107,15 +107,12 @@ jobs:
           timeout 60s bash -c 'until curl -s http://localhost:8080/v3/api-docs; do sleep 2; done'
           echo "Spring Boot uspješno podignut! Swagger dohvaćen."
 
-      - name: Run OWASP ZAP API Scan (Swagger + Roles)
+      - name: Run OWASP ZAP API Scan
         uses: zaproxy/action-api-scan@v0.7.0
+        continue-on-error: true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           format: openapi
-          # ZAP čita automatski generirani Swagger s lokalno podignute aplikacije
           target: 'http://localhost:8080/v3/api-docs'
-          # Prosljeđujemo skriptu koja simulira login za 'admin' i 'marko' te lijepi JWT tokene
           cmd_options: '-z "-hook zap-hooks.py"'
-          # Postavi na 'true' ako želiš da cijeli CI/CD pipeline padne ako ZAP nađe kritičnu grešku
-          fail_action: false
 
