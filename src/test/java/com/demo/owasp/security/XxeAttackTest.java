@@ -36,7 +36,7 @@ class XxeAttackTest {
 
         // 2. Simuliramo Multipart datoteku izravno u memoriji (bez HTTP-a)
         MockMultipartFile mockFile = new MockMultipartFile(
-                "file",
+                "zap-hooks.py",
                 "attack.xml",
                 "text/xml",
                 xxePayload.getBytes()

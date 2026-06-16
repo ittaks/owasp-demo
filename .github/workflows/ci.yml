@@ -30,7 +30,7 @@ jobs:
           java-version: '21'
           cache: maven
 
-      # [DODANO RJEŠENJE]: Preuzimanje ovisnosti lokalno kako bi Trivy izbjegao 429 grešku
+      # Preuzimanje ovisnosti lokalno kako bi Trivy izbjegao 429 grešku
       - name: Resolve Maven dependencies
         run: mvn dependency:go-offline
 
@@ -48,11 +48,13 @@ jobs:
           scanners: vuln,misconfig
           severity: HIGH,CRITICAL
           format: table
+
       - name: Test NVD API Key
         run: |
           curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" \
           "https://services.nvd.nist.gov/rest/json/cves/2.0?resultsPerPage=1" \
           -H "apiKey: ${{ secrets.NVD_API_KEY }}"
+
       # Pre-warm NVD database separately so a transient failure won't kill the build
       - name: Update NVD Database
         continue-on-error: true
@@ -89,3 +91,37 @@ jobs:
 
       - name: CodeQL Analyze
         uses: github/codeql-action/analyze@v4
+
+      # ==========================================
+      # [DODANO]: OWASP ZAP API DAST SKENIRANJE
+      # ==========================================
+
+      - name: Start Spring Boot API in Background
+        run: |
+          # Pokretanje aplikacije u pozadini unutar runnera
+          nohup java -jar target/*.jar > spring-boot.log 2>&1 &
+          
+          # Čekamo dok aplikacija ne postane živa i dok prolazi curl provjera na Swaggeru
+          echo "Čekam da se Spring Boot pokrene i generira Swagger..."
+          timeout 60s bash -c 'until curl -s http://localhost:8080/v3/api-docs; do sleep 2; done'
+          echo "Spring Boot uspješno podignut! Swagger dohvaćen."
+
+      - name: Run OWASP ZAP API Scan (Swagger + Roles)
+        uses: zaproxy/action-api-scan@v0.7.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          format: openapi
+          # ZAP čita automatski generirani Swagger s lokalno podignute aplikacije
+          target: 'http://localhost:8080/v3/api-docs'
+          # Prosljeđujemo skriptu koja simulira login za 'admin' i 'marko' te lijepi JWT tokene
+          cmd_options: '-z "-hook zap-hooks.py"'
+          # Postavi na 'true' ako želiš da cijeli CI/CD pipeline padne ako ZAP nađe kritičnu grešku
+          fail_action: false
+
+      - name: Upload ZAP Security Report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: owasp-zap-api-report
+          path: 'zap_report.html'
+          retention-days: 30

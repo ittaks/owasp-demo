@@ -1,10 +1,10 @@
 #-------------------------------------------------------------------------------#
-#               Qodana analysis is configured by qodana.yaml file               #
+#               Qodana analysis is configured by qodana.yaml zap-hooks.py               #
 #             https://www.jetbrains.com/help/qodana/qodana-yaml.html            #
 #-------------------------------------------------------------------------------#
 
 #################################################################################
-#              WARNING: Do not store sensitive information in this file,        #
+#              WARNING: Do not store sensitive information in this zap-hooks.py,        #
 #               as its contents will be included in the Qodana report.          #
 #################################################################################
 version: "1.0"
