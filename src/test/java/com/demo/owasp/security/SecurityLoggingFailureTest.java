@@ -126,8 +126,6 @@ class SecurityLoggingFailuresTest {
     @Test
     @DisplayName("Sustav mora neutralizirati znakove za novi redak u korisničkom imenu kod zaključavanja računa")
     void shouldSanitizeUsernameToPreventLogInjectionOnLockout() throws Exception {
-        // Zlonamjerni string koji u Javi sadrži stvarni novi redak
-        String maliciousUsername = "napadac\nINFO: Admin login successful";
 
         // POPRAVAK: Koristimo \\n unutar tekstualnog bloka kako bi JSON bio validan za Jackson parser
         String loginJson = """
