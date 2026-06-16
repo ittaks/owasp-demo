@@ -31,12 +31,11 @@ class SecurityConfigurationTest {
     // OWASP A02:2025 — Ranjivost: Izloženost osjetljivih Actuator endpointa
     // =========================================================================
     @Test
-    @DisplayName("Osjetljivi Actuator endpointi (/env) moraju biti nedostupni javnosti")
+    @DisplayName("Osjetljivi Actuator endpointi (/env) moraju biti zaštićeni")
     void sensitiveActuatorEndpoints_shouldBeProtected() throws Exception {
-        // Izloženost /actuator/env može otkriti lozinke iz baze i privatne ključeve.
-        // Očekujemo status 401 Unauthorized ili 403 Forbidden za neautentificirane zahtjeve.
+
         mockMvc.perform(get("/actuator/env"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isForbidden()); // ili isUnauthorized()
     }
 
     @Test
