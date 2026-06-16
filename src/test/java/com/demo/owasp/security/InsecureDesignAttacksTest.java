@@ -116,7 +116,7 @@ class InsecureDesignAttacksTest {
     void shouldRejectNonXmlMultipartFiles() throws Exception {
         // Kreiramo lažni zlonamjerni skriptni fajl (npr. .sh) zamaskiran kao upload
         MockMultipartFile maliciousFile = new MockMultipartFile(
-                "zap-hooks.py",
+                "file",
                 "attack.sh",
                 "application/x-sh",
                 "echo 'malicious exploit'".getBytes()
