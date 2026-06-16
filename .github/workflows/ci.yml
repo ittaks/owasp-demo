@@ -119,10 +119,3 @@ jobs:
           # Postavi na 'true' ako želiš da cijeli CI/CD pipeline padne ako ZAP nađe kritičnu grešku
           fail_action: false
 
-      - name: Upload ZAP Security Report
-        if: always()
-        uses: actions/upload-artifact@v5
-        with:
-          name: owasp-zap-api-report
-          path: 'zap_report.html'
-          retention-days: 30
