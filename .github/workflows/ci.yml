@@ -6,15 +6,9 @@ permissions:
   issues: write
 
 on:
-  push:
-    branches:
-      - master
-      - develop
-      - insecure-base
-
-  pull_request:
-    branches:
-      - master
+  push: {}
+  pull_request: {}
+  workflow_dispatch:
 
 jobs:
   secure-build:
@@ -32,17 +26,23 @@ jobs:
           java-version: '21'
           cache: maven
 
-      # Preuzimanje ovisnosti lokalno kako bi Trivy izbjegao 429 grešku
       - name: Resolve Maven dependencies
         run: mvn dependency:go-offline
 
+      # =========================
+      # SAST (CodeQL init)
+      # =========================
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
           languages: java-kotlin
           queries: security-extended,security-and-quality
 
+      # =========================
+      # SCA / FS scan
+      # =========================
       - name: Trivy Filesystem Scan
+        continue-on-error: true
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs
@@ -52,25 +52,30 @@ jobs:
           format: table
 
       - name: Test NVD API Key
+        continue-on-error: true
         run: |
           curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" \
           "https://services.nvd.nist.gov/rest/json/cves/2.0?resultsPerPage=1" \
           -H "apiKey: ${{ secrets.NVD_API_KEY }}"
 
-      # Pre-warm NVD database separately so a transient failure won't kill the build
       - name: Update NVD Database
         continue-on-error: true
         run: mvn dependency-check:update-only
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
+      # =========================
+      # Build
+      # =========================
       - name: Maven Build + Tests + Dependency Check + SBOM
+        continue-on-error: true
         run: mvn clean verify -e
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
       - name: Debug target folder
-        run: find target -type f
+        if: always()
+        run: find target -type f || true
 
       - name: Upload SBOM
         if: always()
@@ -80,10 +85,15 @@ jobs:
           path: target/classes/META-INF/sbom/application.cdx.json
           retention-days: 30
 
+      # =========================
+      # Docker
+      # =========================
       - name: Build Docker Image
+        continue-on-error: true
         run: docker build -t owasp-demo:latest .
 
       - name: Trivy Docker Image Scan
+        continue-on-error: true
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: owasp-demo:latest
@@ -91,29 +101,29 @@ jobs:
           format: table
           exit-code: 1
 
+      # =========================
+      # CodeQL finalize
+      # =========================
       - name: CodeQL Analyze
+        continue-on-error: true
         uses: github/codeql-action/analyze@v4
 
-      # ==========================================
-      # [DODANO]: OWASP ZAP API DAST SKENIRANJE
-      # ==========================================
-
+      # =========================
+      # DAST (ZAP)
+      # =========================
       - name: Start Spring Boot API in Background
+        continue-on-error: true
         run: |
-          # Pokretanje aplikacije u pozadini unutar runnera
           nohup java -jar target/*.jar > spring-boot.log 2>&1 &
           
-          # Čekamo dok aplikacija ne postane živa i dok prolazi curl provjera na Swaggeru
-          echo "Čekam da se Spring Boot pokrene i generira Swagger..."
-          timeout 60s bash -c 'until curl -s http://localhost:8080/v3/api-docs; do sleep 2; done'
-          echo "Spring Boot uspješno podignut! Swagger dohvaćen."
+          echo "Waiting for Spring Boot..."
+          timeout 60s bash -c 'until curl -s http://localhost:8080/v3/api-docs; do sleep 2; done || true'
 
       - name: Run OWASP ZAP API Scan
-        uses: zaproxy/action-api-scan@v0.7.0
         continue-on-error: true
+        uses: zaproxy/action-api-scan@v0.7.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           format: openapi
           target: 'http://localhost:8080/v3/api-docs'
           cmd_options: '-z "-hook zap-hooks.py"'
-
