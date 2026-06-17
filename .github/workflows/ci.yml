@@ -1,0 +1,118 @@
+name: OWASP Secure CI Pipeline
+
+permissions:
+  contents: read
+  security-events: write
+  issues: write
+
+on:
+  push:
+    branches:
+      - master
+      - develop
+
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  secure-build:
+    name: Build, SAST, SCA, SBOM and Container Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # Preuzimanje ovisnosti lokalno kako bi Trivy izbjegao 429 grešku
+      - name: Resolve Maven dependencies
+        run: mvn dependency:go-offline
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: java-kotlin
+          queries: security-extended,security-and-quality
+
+      - name: Trivy Filesystem Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,misconfig
+          severity: HIGH,CRITICAL
+          format: table
+
+      - name: Test NVD API Key
+        run: |
+          curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" \
+          "https://services.nvd.nist.gov/rest/json/cves/2.0?resultsPerPage=1" \
+          -H "apiKey: ${{ secrets.NVD_API_KEY }}"
+
+      # Pre-warm NVD database separately so a transient failure won't kill the build
+      - name: Update NVD Database
+        continue-on-error: true
+        run: mvn dependency-check:update-only
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+
+      - name: Maven Build + Tests + Dependency Check + SBOM
+        run: mvn clean verify -e
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+
+      - name: Debug target folder
+        run: find target -type f
+
+      - name: Upload SBOM
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: software-bill-of-materials
+          path: target/classes/META-INF/sbom/application.cdx.json
+          retention-days: 30
+
+      - name: Build Docker Image
+        run: docker build -t owasp-demo:latest .
+
+      - name: Trivy Docker Image Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: owasp-demo:latest
+          severity: HIGH,CRITICAL
+          format: table
+          exit-code: 1
+
+      - name: CodeQL Analyze
+        uses: github/codeql-action/analyze@v4
+
+      # ==========================================
+      # [DODANO]: OWASP ZAP API DAST SKENIRANJE
+      # ==========================================
+
+      - name: Start Spring Boot API in Background
+        run: |
+          # Pokretanje aplikacije u pozadini unutar runnera
+          nohup java -jar target/*.jar > spring-boot.log 2>&1 &
+          
+          # Čekamo dok aplikacija ne postane živa i dok prolazi curl provjera na Swaggeru
+          echo "Čekam da se Spring Boot pokrene i generira Swagger..."
+          timeout 60s bash -c 'until curl -s http://localhost:8080/v3/api-docs; do sleep 2; done'
+          echo "Spring Boot uspješno podignut! Swagger dohvaćen."
+
+      - name: Run OWASP ZAP API Scan
+        uses: zaproxy/action-api-scan@v0.7.0
+        continue-on-error: true
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          format: openapi
+          target: 'http://localhost:8080/v3/api-docs'
+          cmd_options: '-z "-hook zap-hooks.py"'
+
