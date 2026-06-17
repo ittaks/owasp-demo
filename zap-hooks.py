@@ -43,14 +43,10 @@ def get_jwt_token(url, username, password):
         return None
 
 def sending_request(zap, id, msg):
-    """Ova funkcija presreće SVAKI zahtjev koji ZAP šalje i dodaje ispravan Authorization header"""
     global tokens
-
-    # Provjeravamo koji korisnik trenutno izvršava skeniranje u ZAP-u
-    current_user = msg.get_user()
-
-    if current_user in tokens and tokens[current_user]:
-        # Dodajemo Bearer token u header zahtjeva
-        msg.getRequestHeader().setHeader("Authorization", f"Bearer {tokens[current_user]}")
-
+    token = tokens.get("AdminUser")
+    if token:
+        msg.getRequestHeader().setHeader(
+            "Authorization", f"Bearer {token}"
+        )
     return msg

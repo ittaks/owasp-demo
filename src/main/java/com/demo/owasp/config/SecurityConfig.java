@@ -52,12 +52,14 @@ public class SecurityConfig {
                 .securityMatcher("/actuator/**")
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        // SAFE endpoints
-                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
-                        .requestMatchers("/actuator/info").permitAll()
-
-                        // everything else locked down
-                        .anyRequest().hasRole("ADMIN")
+                        .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers(
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
+                        ).permitAll()
+                        .requestMatchers("/tasks/**").hasAnyRole("USER", "ADMIN")
+                        .anyRequest().authenticated()
                 )
                 .build();
     }
