@@ -127,3 +127,6 @@ jobs:
           format: openapi
           target: 'http://localhost:8080/v3/api-docs'
           cmd_options: '-z "-hook zap-hooks.py"'
+
+
+
